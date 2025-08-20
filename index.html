@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghi chú video</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+        }
+        h2 {
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        select, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* Tỷ lệ 16:9 */
+            height: 0;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+        #save-button {
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+            display: none;
+        }
+        #save-button:hover {
+            background-color: #218838;
+        }
+        #status-message {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Ghi chú bài học</h2>
+    
+    <div class="input-group">
+        <label for="date-dropdown">Chọn Ngày:</label>
+        <select id="date-dropdown" onchange="displayContent()"></select>
+    </div>
+
+    <div id="video-box" class="video-container">
+        <iframe id="video-frame" src="" frameborder="0" allowfullscreen></iframe>
+    </div>
+    
+    <div id="note-box" style="display: none;">
+        <div class="input-group">
+            <label for="note-content">Nội dung ghi chú:</label>
+            <textarea id="note-content" rows="10" placeholder="Gõ những gì bạn nghe được từ video..."></textarea>
+        </div>
+        <button id="save-button" onclick="saveToDocs()">Lưu vào Google Docs</button>
+        <div id="status-message"></div>
+    </div>
+</div>
+
+<script>
+    const webAppUrl = 'https://script.google.com/macros/s/AKfycbwnTPQG36_DALMWYQuZqrJvz_uaRxSc-NY-lYeBntvQAKZqEIhVhFn59N6Dd8JNSfK9/exec'; // Thay thế bằng URL của bạn
+    let docUrls = [];
+    let videoUrls = [];
+
+    async function loadData() {
+        try {
+            const response = await fetch(webAppUrl);
+            const data = await response.json();
+            
+            const dateDropdown = document.getElementById('date-dropdown');
+            data.dates.forEach((date, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = date;
+                dateDropdown.appendChild(option);
+            });
+
+            docUrls = data.docUrls;
+            videoUrls = data.videoUrls;
+            
+            // Hiển thị nội dung đầu tiên
+            displayContent();
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu:', error);
+            document.getElementById('status-message').innerText = 'Không thể tải dữ liệu. Vui lòng kiểm tra lại URL Apps Script.';
+        }
+    }
+
+    function displayContent() {
+        const selectedIndex = document.getElementById('date-dropdown').value;
+        const videoBox = document.getElementById('video-box');
+        const noteBox = document.getElementById('note-box');
+        
+        if (selectedIndex) {
+            videoBox.style.display = 'block';
+            noteBox.style.display = 'block';
+            document.getElementById('video-frame').src = videoUrls[selectedIndex];
+            document.getElementById('save-button').style.display = 'block';
+        } else {
+            videoBox.style.display = 'none';
+            noteBox.style.display = 'none';
+            document.getElementById('save-button').style.display = 'none';
+        }
+    }
+
+    async function saveToDocs() {
+        const selectedIndex = document.getElementById('date-dropdown').value;
+        const docUrl = docUrls[selectedIndex];
+        const content = document.getElementById('note-content').value;
+        const statusMessage = document.getElementById('status-message');
+        
+        statusMessage.innerText = 'Đang lưu...';
+        
+        try {
+            const response = await fetch(webAppUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    docUrl: docUrl,
+                    content: content
+                })
+            });
+            const result = await response.json();
+            if (result.status === 'success') {
+                statusMessage.innerText = 'Lưu thành công!';
+                document.getElementById('note-content').value = ''; // Xóa nội dung sau khi lưu
+            } else {
+                statusMessage.innerText = `Lỗi: ${result.message}`;
+            }
+        } catch (error) {
+            statusMessage.innerText = 'Lỗi khi kết nối. Vui lòng thử lại.';
+        }
+    }
+
+    window.onload = loadData;
+</script>
+
+</body>
+</html>
